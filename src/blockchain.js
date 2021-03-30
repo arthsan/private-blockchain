@@ -76,9 +76,11 @@ class Blockchain {
         block.hash = SHA256(JSON.stringify(block)).toString();
 
         self.chain.push(block);
-        console.log(block);
-        resolve();
-        return this.chain;
+        const error = self.validateChain();
+        if (error.length > 0) {
+          reject(error);
+        }
+        resolve(block);
       } catch (error) {
         reject(error);
       }
@@ -129,11 +131,12 @@ class Blockchain {
     const self = this;
     return new Promise(async (resolve, reject) => {
       try {
+        self.validateChain();
         const time = parseInt(message.split(':')[1]);
         const currentTime = parseInt(
           new Date().getTime().toString().slice(0, -3)
         );
-        if (currentTime - time > 60 * 5) return;
+        if (currentTime - time > 60 * 5) reject();
         if (bitcoinMessage.verify(message, address, signature)) {
           const block = new BlockClass.Block({
             data: { star, owner: address },
@@ -219,22 +222,19 @@ class Blockchain {
     const errorLog = [];
     return new Promise((resolve, reject) => {
       try {
-        resolve(() => {
-          for (let i = 0; i < self.chain.length; i += 1) {
-            const block = self.chain[i];
-            const valid = block.validate();
-            let log;
-            if (
-              self.chain.length > 0 &&
-              block.hash[-1] !== block.previousblockhash
-            ) {
-              log = `${valid}different hashs`;
-            }
-            if (!valid) {
-              errorLog.push(log);
-            }
+        self.chain.forEach(async (block, idx) => {
+          const valid = await block.validate();
+          if (!valid) {
+            errorLog.push({ error: 'Block validation failed' });
+          }
+          if (
+            block.length > 0 &&
+            block[idx - 1].hash === block.previousBlockHash
+          ) {
+            errorLog.push({ error: 'Block validation failed' });
           }
         });
+        resolve(errorLog);
       } catch (error) {
         reject(error);
       }

@@ -36,15 +36,14 @@ class Block {
    */
   validate() {
     const self = this;
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       try {
-        resolve(() => {
-          const hashValue = SHA256(JSON.stringify(self)).toString();
-          if (self.hash !== hashValue) {
-            return false;
-          }
-          return true;
-        });
+        const currentHash = self.hash;
+        const hashValue = await SHA256(JSON.stringify(self)).toString();
+        if (currentHash !== hashValue) {
+          resolve(true);
+        }
+        resolve(false);
       } catch (error) {
         reject(error);
       }
@@ -67,9 +66,10 @@ class Block {
    *     or Reject with an error.
    */
   getBData() {
+    const self = this;
     return new Promise((resolve, reject) => {
       try {
-        const decodeData = JSON.parse(hex2ascii(this.body));
+        const decodeData = JSON.parse(hex2ascii(self.body));
         resolve(decodeData);
       } catch (error) {
         reject(error);
